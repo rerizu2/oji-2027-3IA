@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>王寺工業 3IA | Creating the final foundation</title>
+  <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=M+PLUS+Rounded+1c:wght@400;700&family=Noto+Sans+JP:wght@400;700&family=Roboto+Mono&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <style>
+    /* ===== デザイン: 図面（ブループリント）× 基板（ダーク）===== */
+    :root {
+      --paper:#eaf0f6; --paper-2:#f6f9fc; --card:#fbfdff;
+      --ink:#12263f; --ink-soft:#4a5d75; --on-ink:#f6f9fc;
+      --line:#1d5fa8; --accent:#c8742a;
+      --grid:rgba(29,95,168,.08); --grid-strong:rgba(29,95,168,.15);
+      --shadow:rgba(18,38,63,.16);
+      --font-main:'Zen Kaku Gothic New','Noto Sans JP',sans-serif;
+    }
+    body.theme-classic {
+      --paper:#0e2623; --paper-2:#12302c; --card:#143733;
+      --ink:#e9efe8; --ink-soft:#a9bdb4; --on-ink:#0e2623;
+      --line:#6fc1b3; --accent:#e0a064;
+      --grid:rgba(224,160,100,.07); --grid-strong:rgba(224,160,100,.14);
+      --shadow:rgba(0,0,0,.35);
+    }
+
+    html, body { overflow-x: hidden; width: 100%; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-main); color: var(--ink); line-height: 1.7; letter-spacing: .02em;
+      background-color: var(--paper);
+      background-image:
+        linear-gradient(var(--grid-strong) 1px, transparent 1px), linear-gradient(90deg, var(--grid-strong) 1px, transparent 1px),
+        linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+      background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
+      transition: background-color .3s, color .3s;
+    }
+    a { color: var(--line); }
+    h1 { font-size: 26px; font-weight: 900; margin: 8px 0 18px; padding-bottom: 6px; border-bottom: 2px solid var(--ink); }
+
+    /* 縦画面ブロック */
+    #orientation-warning { display: none; position: fixed; inset: 0; background: #12263f; color: #f6f9fc; z-index: 10000; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; }
+    .rotate-icon { font-size: 80px; margin-bottom: 20px; animation: rotate-anim 2s infinite; }
+    @keyframes rotate-anim { 0% { transform: rotate(0deg); } 50% { transform: rotate(-90deg); } 100% { transform: rotate(0deg); } }
+    @media screen and (orientation: portrait) { #orientation-warning { display: flex; } body { overflow: hidden; } }
+
+    /* ログイン画面 */
+    .password-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; text-align: center; padding: 20px; color: var(--ink); }
+    .password-screen h1 { font-size: 34px; border: none; margin: 0 0 6px; }
+    .password-screen input { padding: 14px; font-size: 18px; border-radius: 2px; border: 2px solid var(--ink); background: var(--card); width: 80%; max-width: 300px; margin-bottom: 15px; text-align: center; color: var(--ink); box-shadow: 4px 4px 0 var(--shadow); }
+    .password-screen input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    .password-screen button { padding: 12px 28px; font-size: 16px; border-radius: 2px; border: 2px solid var(--ink); background: var(--ink); color: var(--on-ink); font-weight: 700; cursor: pointer; margin: 5px; font-family: inherit; }
+    .password-screen button:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .password-screen button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+    /* ヘッダー（図面の表題欄のイメージ） */
+    header { background: var(--paper-2); padding: 10px 20px; position: sticky; top: 0; z-index: 1000; border-bottom: 2px solid var(--ink); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    header .logo { font-size: 17px; font-weight: 900; color: var(--on-ink); background: var(--ink); padding: 6px 14px; border-radius: 2px; white-space: nowrap; letter-spacing: .08em; }
+    .header-controls { display: flex; align-items: center; gap: 10px; }
+    .lang-select { padding: 5px 6px; border-radius: 2px; border: 1.5px solid var(--ink); background: var(--card); font-size: 12px; font-weight: 700; cursor: pointer; color: var(--ink); font-family: inherit; }
+
+    .switch-area { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: 12px; font-weight: 700; }
+    .switch { position: relative; display: inline-block; width: 42px; height: 22px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; inset: 0; background: var(--card); border: 1.5px solid var(--ink); transition: .25s; border-radius: 2px; }
+    .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; top: 2.5px; background: var(--ink); transition: .25s; border-radius: 1px; }
+    input:checked + .slider { background: var(--accent); }
+    input:checked + .slider:before { transform: translateX(20px); background: var(--on-ink); }
+    .switch input:focus-visible + .slider { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+    nav ul { display: flex; list-style: none; gap: 2px; flex-wrap: wrap; }
+    nav ul li a { color: var(--ink); text-decoration: none; font-weight: 700; cursor: pointer; padding: 8px 11px; font-size: 13px; white-space: nowrap; border-bottom: 3px solid transparent; }
+    nav ul li a:hover { border-bottom-color: var(--accent); background: var(--grid); }
+    .menu-toggle { display: none; background: var(--ink); color: var(--on-ink); padding: 8px 14px; border-radius: 2px; font-size: 14px; font-weight: 700; cursor: pointer; }
+
+    /* ヒーロー（図面枠＋表題欄） */
+    .hero { position: relative; width: 95%; max-width: 1100px; margin: 26px auto; border: 2px solid var(--ink); border-radius: 2px; overflow: hidden; box-shadow: 6px 6px 0 var(--shadow); background: var(--paper-2); }
+    .hero-img { display: block; width: 100%; height: auto; object-fit: cover; opacity: 1; transition: opacity .6s ease; }
+    .hero-text { position: absolute; bottom: 0; left: 0; width: min(440px, 100%); background: var(--paper-2); border-top: 2px solid var(--ink); border-right: 2px solid var(--ink); padding: 14px 20px; text-align: left; z-index: 5; }
+    .hero-text h1 { font-size: 24px; border: none; margin: 0; padding: 0; color: var(--ink); }
+    .hero-text p { font-size: 13px; color: var(--ink-soft); font-weight: 500; }
+    .hero-buttons { position: absolute; top: 50%; width: 100%; display: flex; justify-content: space-between; transform: translateY(-50%); padding: 0 12px; pointer-events: none; z-index: 10; }
+    .hero-btn { background: var(--paper-2); border: 2px solid var(--ink); border-radius: 2px; width: 40px; height: 40px; font-size: 16px; cursor: pointer; pointer-events: auto; color: var(--ink); }
+    .hero-btn:hover { background: var(--accent); color: #fff; }
+    .hero-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+    /* コンテンツ */
+    .page-content { max-width: 1000px; margin: 20px auto; padding: 0 20px; }
+    .card { background: var(--card); border: 1.5px solid var(--ink); border-radius: 2px; padding: 24px; margin-bottom: 28px; box-shadow: 4px 4px 0 var(--shadow); overflow: hidden; }
+    .card h2 { color: var(--ink); font-size: 19px; font-weight: 900; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+    .card h2::before { content: ""; width: 11px; height: 11px; background: var(--accent); flex: none; }
+    .coming-soon { text-align: center; padding: 40px 10px; color: var(--ink-soft); }
+
+    /* お知らせ */
+    .news-list { list-style: none; }
+    .news-list li { padding: 11px 0; border-bottom: 1px dashed var(--ink-soft); font-size: 14px; display: flex; align-items: baseline; gap: 14px; }
+    .news-list li:last-child { border-bottom: none; }
+    .news-date { font-weight: 900; color: var(--line); min-width: 96px; font-variant-numeric: tabular-nums; }
+    .news-link { font-weight: 700; margin-left: auto; }
+
+    /* 集計 */
+    .stats-container { display: flex; flex-wrap: wrap; gap: 20px; padding: 16px; background: var(--card); border: 1.5px solid var(--ink); border-radius: 2px; margin-bottom: 20px; font-size: 14px; }
+    .stats-item { flex: 1; min-width: 150px; }
+    .stats-item strong { display: block; margin-bottom: 6px; border-bottom: 1.5px solid var(--ink); padding-bottom: 2px; }
+
+    /* 求人検索 */
+    .search-panel { background: var(--card); border: 1.5px solid var(--ink); border-radius: 2px; padding: 20px; margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
+    .search-group { display: flex; flex-direction: column; }
+    .search-group label { font-weight: 700; font-size: 13px; margin-bottom: 5px; color: var(--ink-soft); }
+    .search-group input, .search-group select { padding: 10px; border: 1.5px solid var(--ink); border-radius: 2px; font-size: 14px; background: var(--paper-2); color: var(--ink); font-family: inherit; }
+    .search-group input:focus-visible, .search-group select:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+    .btn-reset { grid-column: 1 / -1; background: var(--ink); color: var(--on-ink); border: none; padding: 10px; border-radius: 2px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .btn-reset:hover { background: var(--accent); color: #fff; }
+
+    .table-container { width: 100%; overflow-x: auto; border: 1.5px solid var(--ink); border-radius: 2px; background: var(--card); }
+    .job-table { width: 100%; border-collapse: collapse; min-width: 800px; }
+    .job-table th { background: var(--ink); color: var(--on-ink); padding: 12px; text-align: left; font-size: 14px; }
+    .job-table td { padding: 12px; border-bottom: 1px solid var(--grid-strong); font-size: 13px; vertical-align: middle; }
+    .job-table tbody tr:hover { background: var(--grid); }
+    .job-empty { text-align: center; color: var(--ink-soft); padding: 30px !important; }
+
+    .btn-job-detail { background: var(--ink); color: var(--on-ink) !important; padding: 5px 10px; border-radius: 2px; text-decoration: none; font-weight: 700; font-size: 11px; white-space: nowrap; display: inline-block; }
+    .btn-job-detail:hover { background: var(--accent); color: #fff !important; }
+    .badge-kenai, .badge-kengai { padding: 2px 8px; border-radius: 2px; font-size: 11px; font-weight: 700; white-space: nowrap; display: inline-block; }
+    .badge-kenai { background: var(--line); color: var(--on-ink); }
+    .badge-kengai { background: var(--accent); color: #fff; }
+
+    footer { background: var(--ink); color: var(--on-ink); text-align: center; padding: 30px 0; margin-top: 50px; border-top: 5px solid var(--accent); }
+
+    iframe { border: 1px solid var(--ink); width: 100%; border-radius: 2px; background: #fff; }
+
+    @media (max-width: 1024px) {
+      .menu-toggle { display: block; }
+      nav ul { display: none; flex-direction: column; background: var(--card); position: absolute; top: 100%; right: 20px; width: 220px; padding: 8px; border: 2px solid var(--ink); border-radius: 2px; box-shadow: 5px 5px 0 var(--shadow); z-index: 2000; }
+      nav ul.show { display: flex; }
+      nav ul li a { display: block; padding: 12px; border-bottom: 1px solid var(--grid-strong); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .rotate-icon { animation: none; }
+      .hero-img, .slider, .slider:before { transition: none; }
+    }
+
+    /* ===== 旧デザイン: 2IA風（ブルー丸角）/ 1IA風（フラット） ===== */
+    body.theme-2ia {
+      --o-primary:#4cc9f0; --o-dark:#4361ee; --o-sec:#ffd166; --o-bg:#f0f7ff; --o-text:#2b2d42;
+      --o-grad:linear-gradient(90deg,#4361ee,#4cc9f0,#72efdd); --o-font:'M PLUS Rounded 1c',sans-serif;
+      --o-radius:25px; --o-header-radius:0 0 20px 20px; --o-hero-border:6px solid #fff; --o-hero-shadow:0 10px 25px rgba(0,0,0,.1);
+      --o-hero-w:95%; --o-hero-max:1100px; --o-hero-margin:20px auto; --o-card-border:6px solid #4cc9f0; --o-footer-radius:30px 30px 0 0;
+      --o-news-bg:#eef8ff; --o-news-border:none; --o-news-radius:15px;
+    }
+    body.theme-1ia {
+      --o-primary:#005bac; --o-dark:#004080; --o-sec:#ffa502; --o-bg:#f8f9fa; --o-text:#333;
+      --o-grad:#005bac; --o-font:'Noto Sans JP',sans-serif;
+      --o-radius:0px; --o-header-radius:0; --o-hero-border:none; --o-hero-shadow:none;
+      --o-hero-w:100%; --o-hero-max:100%; --o-hero-margin:0; --o-card-border:1px solid #ddd; --o-footer-radius:0;
+      --o-news-bg:#fff; --o-news-border:1px solid #eee; --o-news-radius:0;
+    }
+    body.theme-2ia, body.theme-1ia { font-family:var(--o-font); color:var(--o-text); background-color:var(--o-bg); background-image:none; letter-spacing:normal; line-height:1.6; }
+    body.theme-2ia h1, body.theme-1ia h1 { font-size:2em; font-weight:700; border:none; padding:0; margin:.67em 0; }
+    body.theme-2ia .password-screen, body.theme-1ia .password-screen { background:var(--o-grad); color:#fff; }
+    body.theme-2ia .password-screen h1, body.theme-1ia .password-screen h1 { font-size:2em; margin:.67em 0; }
+    body.theme-2ia .password-screen input, body.theme-1ia .password-screen input { border:none; border-radius:10px; box-shadow:none; background:#fff; color:#333; }
+    body.theme-2ia .password-screen button, body.theme-1ia .password-screen button { background:#fff; color:var(--o-dark); border:none; border-radius:10px; }
+    body.theme-2ia .password-screen button:hover, body.theme-1ia .password-screen button:hover { background:#fff; color:var(--o-dark); opacity:.9; }
+    body.theme-2ia header, body.theme-1ia header { background:var(--o-grad); border-bottom:none; border-radius:var(--o-header-radius); box-shadow:0 4px 15px rgba(0,0,0,.1); }
+    body.theme-2ia header .logo, body.theme-1ia header .logo { background:rgba(255,255,255,.2); color:#fff; border-radius:20px; padding:5px 15px; letter-spacing:0; font-weight:800; font-size:18px; }
+    body.theme-2ia .lang-select, body.theme-1ia .lang-select { background:rgba(255,255,255,.8); border:none; border-radius:10px; color:var(--o-dark); }
+    body.theme-2ia nav ul li a, body.theme-1ia nav ul li a { color:#fff; border-radius:12px; border-bottom:none; }
+    body.theme-2ia nav ul li a:hover, body.theme-1ia nav ul li a:hover { background:rgba(255,255,255,.3); }
+    body.theme-2ia .menu-toggle, body.theme-1ia .menu-toggle { background:rgba(255,255,255,.2); color:#fff; border-radius:12px; border:1px solid rgba(255,255,255,.3); }
+    body.theme-2ia .hero, body.theme-1ia .hero { border:var(--o-hero-border); border-radius:var(--o-radius); box-shadow:var(--o-hero-shadow); width:var(--o-hero-w); max-width:var(--o-hero-max); margin:var(--o-hero-margin); background:#fff; }
+    body.theme-2ia .hero-text, body.theme-1ia .hero-text { left:20px; right:20px; bottom:20px; width:auto; background:rgba(255,255,255,.9); border:none; border-radius:15px; padding:15px; text-align:center; backdrop-filter:blur(5px); }
+    body.theme-2ia .hero-text h1, body.theme-1ia .hero-text h1 { font-size:24px; color:var(--o-dark); margin:0; padding:0; }
+    body.theme-2ia .hero-text p, body.theme-1ia .hero-text p { color:inherit; font-size:1em; font-weight:400; }
+    body.theme-2ia .hero-btn, body.theme-1ia .hero-btn { background:rgba(255,255,255,.8); border:none; border-radius:50%; width:44px; height:44px; font-size:18px; color:var(--o-dark); box-shadow:0 2px 10px rgba(0,0,0,.2); }
+    body.theme-2ia .hero-btn:hover, body.theme-1ia .hero-btn:hover { background:#fff; color:var(--o-dark); }
+    body.theme-2ia .card, body.theme-1ia .card { background:#fff; border:none; border-bottom:var(--o-card-border); border-radius:var(--o-radius); box-shadow:0 4px 12px rgba(0,0,0,.05); }
+    body.theme-2ia .card h2, body.theme-1ia .card h2 { display:block; color:var(--o-dark); font-size:20px; font-weight:700; border-left:5px solid var(--o-primary); padding-left:10px; margin-bottom:15px; }
+    body.theme-2ia .card h2::before, body.theme-1ia .card h2::before { display:none; }
+    body.theme-2ia .news-list li, body.theme-1ia .news-list li { background:var(--o-news-bg); border:var(--o-news-border); border-left:4px solid var(--o-primary); border-radius:var(--o-news-radius); padding:12px 18px; margin-bottom:10px; gap:12px; }
+    body.theme-2ia .news-list li:last-child, body.theme-1ia .news-list li:last-child { border-bottom:var(--o-news-border); }
+    body.theme-2ia .news-date, body.theme-1ia .news-date { font-family:'Roboto Mono',monospace; color:var(--o-dark); min-width:90px; }
+    body.theme-2ia .stats-container, body.theme-1ia .stats-container { background:#f8fcff; border:2px solid var(--o-primary); border-radius:15px; box-shadow:0 4px 10px rgba(0,0,0,.05); }
+    body.theme-2ia .stats-item strong, body.theme-1ia .stats-item strong { color:var(--o-dark); border-bottom:1px solid #ddd; padding-bottom:0; }
+    body.theme-2ia .search-panel, body.theme-1ia .search-panel { background:#fdfdfd; border:1px solid #ddd; border-radius:var(--o-radius); }
+    body.theme-2ia .search-group label, body.theme-1ia .search-group label { color:#555; }
+    body.theme-2ia .search-group input, body.theme-2ia .search-group select, body.theme-1ia .search-group input, body.theme-1ia .search-group select { border:1px solid #ccc; border-radius:8px; background:#fff; color:#333; }
+    body.theme-2ia .btn-reset, body.theme-1ia .btn-reset { background:var(--o-sec); color:#333; border-radius:8px; }
+    body.theme-2ia .table-container, body.theme-1ia .table-container { border:none; border-radius:15px; background:transparent; }
+    body.theme-2ia .job-table th, body.theme-1ia .job-table th { background:var(--o-primary); color:#fff; }
+    body.theme-2ia .job-table td, body.theme-1ia .job-table td { border-bottom:1px solid #eee; }
+    body.theme-2ia .job-table tbody tr:hover, body.theme-1ia .job-table tbody tr:hover { background:transparent; }
+    body.theme-2ia .btn-job-detail, body.theme-1ia .btn-job-detail { background:#3b82ce; color:#fff !important; border-radius:5px; }
+    body.theme-2ia .badge-kenai, body.theme-1ia .badge-kenai { background:#4cc9f0; color:#fff; border-radius:10px; }
+    body.theme-2ia .badge-kengai, body.theme-1ia .badge-kengai { background:#ff4d6d; color:#fff; border-radius:10px; }
+    body.theme-2ia footer, body.theme-1ia footer { background:var(--o-primary); border-top:none; border-radius:var(--o-footer-radius); }
+    body.theme-2ia iframe, body.theme-1ia iframe { border:none; border-radius:15px; background:transparent; }
+    body.theme-2ia a, body.theme-1ia a { color:var(--o-dark); }
+    /* 1IA風だけの違い */
+    body.theme-1ia .hero { background:#000; }
+    body.theme-1ia .hero-text { left:0; right:0; bottom:0; background:linear-gradient(transparent, rgba(0,0,0,.7)); color:#fff; border-radius:0; padding:40px 20px 20px; }
+    body.theme-1ia .hero-text h1 { color:#fff; text-shadow:2px 2px 4px rgba(0,0,0,.8); }
+    body.theme-1ia footer { background:#222; }
+    @media (max-width: 1024px) {
+      body.theme-2ia nav ul, body.theme-1ia nav ul { background:#fff; top:70px; border:2px solid var(--o-primary); border-radius:20px; padding:15px; box-shadow:0 10px 30px rgba(0,0,0,.2); }
+      body.theme-2ia nav ul li a, body.theme-1ia nav ul li a { color:var(--o-text); border-bottom:1px solid #eee; border-radius:0; }
+    }
+    footer button { background: transparent; color: inherit; border: 1.5px solid currentColor; padding: 6px 16px; border-radius: 2px; cursor: pointer; font: inherit; font-size: 13px; }
+    footer button:hover:not(:disabled) { background: rgba(255,255,255,.18); }
+    footer button:disabled { opacity: .6; cursor: default; }
+    footer button:focus-visible { outline: 3px solid var(--accent, #fff); outline-offset: 2px; }
+  </style>
+</head>
+<body>
+
+  <div id="orientation-warning">
+    <div class="rotate-icon">📱🔄</div>
+    <h2 id="orient-h2">画面を横向きにしてね！</h2>
+    <p id="orient-p">このページは横向きでの閲覧を推奨しています。</p>
+  </div>
+
+  <div class="password-screen" id="password-screen">
+    <div id="login-emoji" style="font-size: 50px; margin-bottom: 10px;">⌨️</div>
+    <h1 id="login-title">3IA Blue Members</h1>
+    <p id="login-msg" style="margin-bottom: 15px; font-weight: bold;">パスワードを入れてね！</p>
+    <input type="password" id="password-input" placeholder="Password..." onkeydown="if(event.key==='Enter')checkPassword()">
+    <div>
+      <button onclick="checkPassword()" id="login-btn">ログイン</button>
+      <button onclick="toggleQRReader()" id="qr-toggle-btn">QRスキャン</button>
+    </div>
+    <div id="qr-reader-container" style="display:none; margin-top:20px; width:300px; border:4px solid white; border-radius:20px; overflow:hidden;">
+      <video id="qr-video" playsinline style="width:100%;"></video>
+      <canvas id="qr-canvas" style="display:none;"></canvas>
+    </div>
+  </div>
+
+  <div class="main-content" id="main-content" style="display:none;">
+    <header>
+      <div id="header-logo" class="logo">3IA OJI-TECH</div>
+      <div class="header-controls">
+        <select id="lang-select" class="lang-select" onchange="changeLanguage()">
+          <option value="ja">日本語</option>
+          <option value="en">English</option>
+          <option value="ko">한국어</option>
+        </select>
+        <select id="theme-select" class="lang-select" onchange="changeTheme()" aria-label="Design"></select>
+        <div class="menu-toggle" onclick="toggleMenu()">☰ MENU</div>
+      </div>
+      <nav><ul id="nav-list"></ul></nav>
+    </header>
+
+    <section class="hero">
+      <img src="https://rerizu2.github.io/oji-2025-1AI/文化祭.png" alt="Slide" class="hero-img">
+      <div class="hero-text">
+        <h1 id="hero-title">3IA's Blue World</h1>
+        <p id="hero-sub">王寺工業高校 情報電子工学科 3年A組</p>
+      </div>
+      <div class="hero-buttons">
+        <button class="hero-btn" onclick="prevHero()">◀</button>
+        <button class="hero-btn" onclick="nextHero()">▶</button>
+      </div>
+    </section>
+
+    <section class="page-content" id="page-content"></section>
+
+    <footer>
+      <p id="footer-text">Enjoy 3IA Blue Life! 💻️</p>
+      <p style="font-size: 11px;">&copy; 2026 王寺工業高等学校 3年A組</p>
+      <p style="margin-top:10px;"><button id="refresh-btn" type="button" onclick="reloadData()" style="display:none;"></button></p>
+      <p id="data-status" style="font-size:12px; opacity:.9; padding:0 16px;"></p>
+    </footer>
+  </div>
+
+  <script>
+    /* =====================================================================
+       ★ 設定エリア（ここだけ書き換えれば3IA用に仕上がります）
+       ===================================================================== */
+
+    // ★ Googleスプレッドシート連携 ★
+    // スプレッドシートのURL「https://docs.google.com/spreadsheets/d/【ここ】/edit」の【ここ】を貼り付けます。
+    // 空のままだと、このファイル内の初期データだけで動きます。
+    // ※ スプレッドシートは「共有 → リンクを知っている全員が閲覧可」にしてください。
+    // ※ パスワードはシートに書かないでください（誰でも読めてしまいます）。
+    const SHEET_ID = "1glPFRN1ICWPeJ2J4xHiAP4jcT52HUJTwGZvpsUGw_ro";
+    // タブ（シート）の名前。スプレッドシート側のタブ名と一致させてください。
+    const SHEET_TABS = { settings: "設定", news: "お知らせ", jobs: "求人票" };
+
+    // ログインパスワード（各文字のコード×3を16進数にしてつなげたもの）
+    // 現在のパスワードは「◯◯◯◯◯」です。変更するには、ブラウザのコンソール(F12)で
+    //   makeHash("新しいパスワード")
+    // を実行し、出てきた文字列を下の値に貼り替えてください。
+    const targetHash = "15fc69c9f156";
+    const defaultPasswordForQR = "uB45r"; // QRコードに埋め込むパスワードと同じにする
+
+    // 各メニューで表示するページのURL。空("")なら「準備中」と表示されます。
+    const LINKS = {
+      schedule:  "",  // 時間割（Googleスプレッドシート「ウェブに公開」のURL）
+      calendar:  "",  // カレンダー（Googleカレンダー埋め込みURL）
+      calendar2: "",  // カレンダー下に出す行事表（任意）
+      events:    "",  // イベント（PDFやページのURL）
+      committee: "",  // 委員・係（スプレッドシートの公開URL）
+      seat:      "",  // 席替えツールのURL
+      aiChat:    "",  // AIチャット（Dify等の埋め込みURL）
+      jobAI:     "",  // 求人票サポートAI（Dify等の埋め込みURL）
+      test:      "",  // テスト範囲（スプレッドシートの公開URL）
+      prints:    ""   // プリント（Googleドライブの embeddedfolderview URL）
+    };
+
+    // 求人票データ: [受付NO, "[事業所名](求人票URL)", "職種名", "届いた日(YYYY/M/D)", "県内" または "県外"]
+    let jobList = [
+      // 例）[1, "[株式会社サンプル](https://example.com/kyujin1)", "技術職", "2026/7/1", "県内"],
+    ];
+
+    // お知らせ（新しいものを上に）
+    let newsData = {
+      ja: [{ date: "2026/10/29", text: "3IAホームページを開放！" }],
+      en: [{ date: "2026/10/29", text: "3IA Website Released!" }],
+      ko: [{ date: "2026/10/29", text: "3IA 홈페이지 오픈!" }]
+    };
+
+    // ヒーロー画像（スライドショー）
+    let heroImages = [
+      "https://rerizu2.github.io/oji-2025-1AI/文化祭.png",
+      "https://rerizu2.github.io/oji-2025-1AI/体育大会.png",
+      "https://rerizu2.github.io/oji-2025-1AI/校外学習.png",
+      "https://rerizu2.github.io/oji-2025-1AI/球技大会.png"
+    ];
+
+    // QRコード画像（ホーム画面に表示。空なら非表示）
+    let QR_IMAGE = "";
+
+    /* ===================================================================== */
+
+    let currentLang = 'ja', currentPage = 'home', videoStream = null, isScanning = false;
+
+    function hashOf(str) { return str.trim().split('').map(c => (c.charCodeAt(0) * 3).toString(16)).join(''); }
+    function makeHash(pw) { const h = hashOf(pw); console.log(h); return h; }
+
+    /* ---------- スプレッドシート連携 ---------- */
+    let DEFAULTS = null, sheetAbout = {}, dataPromise = Promise.resolve(), failedTabs = [], dataLoading = false;
+    const CACHE_KEY = '3ia-sheet-cache';
+    const SHEET_UI = {
+      ja: { refresh: "🔄 最新の情報に更新", loading: "読み込み中…", fail: t => `⚠️ スプレッドシートの読み込みに失敗しました（${t}）。保存済み／初期データを表示しています。` },
+      en: { refresh: "🔄 Refresh data", loading: "Loading…", fail: t => `⚠️ Could not load the spreadsheet (${t}). Showing saved/default data.` },
+      ko: { refresh: "🔄 최신 정보로 새로고침", loading: "불러오는 중…", fail: t => `⚠️ 스프레드시트를 불러오지 못했습니다 (${t}). 저장된/기본 데이터를 표시합니다.` }
+    };
+    const LINK_KEYS = { schedule:'schedule', calendar:'calendar', calendar2:'calendar2', events:'events', committee:'committee', seat:'seat', aichat:'aiChat', jobai:'jobAI', test:'test', prints:'prints' };
+
+    function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+    function safeUrl(u) { u = (u || '').trim(); return /^https?:\/\//i.test(u) ? u : ''; }
+
+    function parseCSV(text) {
+      text = text.replace(/^\uFEFF/, '');
+      const rows = []; let row = [], cur = '', q = false;
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (q) { if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+        else if (c === '"') q = true;
+        else if (c === ',') { row.push(cur); cur = ''; }
+        else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cur); cur = ''; rows.push(row); row = []; }
+        else cur += c;
+      }
+      if (cur !== '' || row.length) { row.push(cur); rows.push(row); }
+      return rows.filter(r => r.some(x => x.trim() !== ''));
+    }
+
+    async function fetchTab(name, expectHead) {
+      const url = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(SHEET_ID)}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(name);
+      const rows = parseCSV(await res.text());
+      // 存在しないタブ名だと別のシートが返ることがあるため、見出しで確認する
+      if (!rows.length || rows[0][0].trim() !== expectHead) throw new Error(name);
+      return rows.slice(1);
+    }
+
+    function buildSettings(rows) {
+      const links = {}, hero = [], about = {}; let qr;
+      rows.forEach(r => {
+        const key = (r[0] || '').trim().toLowerCase(), val = (r[1] || '').trim();
+        if (LINK_KEYS[key]) links[LINK_KEYS[key]] = val;
+        else if (/^hero\d*$/.test(key)) { if (safeUrl(val)) hero.push([key, safeUrl(val)]); }
+        else if (key === 'qr_image') qr = val;
+        else if (/^about_(ja|en|ko)$/.test(key)) about[key.slice(6)] = val;
+      });
+      hero.sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }));
+      return { links, hero: hero.map(h => h[1]), about, qr };
+    }
+    function buildNews(rows) {
+      const list = rows.filter(r => (r[1] || '').trim()).map(r => ({ date: (r[0] || '').trim(), ja: r[1].trim(), en: (r[2] || '').trim(), ko: (r[3] || '').trim(), url: safeUrl(r[4]) }));
+      list.sort((a, b) => b.date.localeCompare(a.date, undefined, { numeric: true }));
+      const out = { ja: [], en: [], ko: [] };
+      list.forEach(n => ['ja', 'en', 'ko'].forEach(l => out[l].push({ date: n.date, text: n[l] || n.ja, url: n.url })));
+      return out;
+    }
+    function buildJobs(rows) {
+      return rows.filter(r => (r[1] || '').trim()).map(r => {
+        const name = r[1].trim().replace(/\[/g, '（').replace(/\]/g, '）'), url = safeUrl(r[5]);
+        const kubun = (r[4] || '').includes('外') ? '県外' : '県内';
+        return [(r[0] || '').trim(), url ? `[${name}](${url})` : name, (r[2] || '').trim(), (r[3] || '').trim().replace(/-/g, '/'), kubun];
+      });
+    }
+
+    function applyData(d) {
+      if (d.links) Object.assign(LINKS, d.links);
+      if (d.qr !== undefined) QR_IMAGE = d.qr;
+      if (d.about) sheetAbout = d.about;
+      if (d.news) newsData = d.news;
+      if (d.jobs) jobList = d.jobs;
+      if (d.hero && d.hero.length) {
+        const changed = JSON.stringify(d.hero) !== JSON.stringify(heroImages);
+        heroImages = d.hero;
+        if (changed) { heroIdx = 0; showHeroImage(0); }
+      }
+    }
+
+    async function loadSheets() {
+      if (!DEFAULTS) DEFAULTS = { jobs: jobList, news: newsData };
+      failedTabs = [];
+      if (!SHEET_ID) { renderStatus(); return; }
+      // 前回の取得結果があれば先に表示（オフラインでも動く）
+      try { const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); if (c) applyData(c); } catch (e) {}
+      dataLoading = true; renderStatus();
+      const T = SHEET_TABS;
+      const res = await Promise.allSettled([fetchTab(T.settings, 'キー'), fetchTab(T.news, '日付'), fetchTab(T.jobs, '受付NO')]);
+      const d = {};
+      if (res[0].status === 'fulfilled') Object.assign(d, buildSettings(res[0].value)); else failedTabs.push(T.settings);
+      if (res[1].status === 'fulfilled') d.news = buildNews(res[1].value); else failedTabs.push(T.news);
+      if (res[2].status === 'fulfilled') d.jobs = buildJobs(res[2].value); else failedTabs.push(T.jobs);
+      applyData(d);
+      try {
+        const old = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ ...old, ...d, links: { ...(old.links || {}), ...(d.links || {}) } }));
+      } catch (e) {}
+      dataLoading = false; renderStatus();
+    }
+
+    function renderStatus() {
+      const ui = SHEET_UI[currentLang] || SHEET_UI.ja;
+      const btn = document.getElementById('refresh-btn'), st = document.getElementById('data-status');
+      if (btn) { btn.style.display = SHEET_ID ? '' : 'none'; btn.innerText = dataLoading ? ui.loading : ui.refresh; btn.disabled = dataLoading; }
+      if (st) st.innerText = failedTabs.length ? ui.fail(failedTabs.join(' / ')) : '';
+    }
+
+    function reloadData() {
+      dataPromise = loadSheets().then(() => showPage(currentPage));
+    }
+
+    const translations = {
+      ja: {
+        loginTitle: "3IA Blue Members", loginTitleClassic: "パスワードを入力してください", loginMsg: "パスワードを入れてね！", loginBtn: "ログイン", qrBtn: "QRスキャン",
+        orientH2: "画面を横向きにしてね！", orientP: "横向き閲覧推奨です。", themeToClassic: "基板", themeToBlue: "図面",
+        nav: ["🏠ホーム", "💼求人票", "📅時間割", "🗓️カレンダー", "🎉イベント", "🖊️委員・係", "📖学習/AI", "📝テスト", "📁プリント"],
+        headerLogo: "3IA OJI-TECH", headerLogoClassic: "3年 I科 A組", heroTitle: "3IA's Blue World", heroTitleClassic: "ようこそ 3IA ページへ",
+        heroSub: "王寺工業高校 情報電子工学科 3年A組", heroSubClassic: "情報電子工学科 基板モード",
+        newsTitle: "📢 おしらせ！", detailsText: "詳細はこちら", aboutTitle: "3IA メンバーズページについて", aboutP: "このページは3IAの皆様・保護者専用です。", qrTitle: "3IAページ QRコード",
+        alertPass: "パスワードが違います", emptyEvent: "現在のイベント行事！", soon: "準備中です。しばらくお待ちください。",
+        search: ["受付NO.", "事業所名", "職種名", "区分", "届いた日", "条件リセット"], allLoc: "すべて",
+        th: ["NO", "事業所名", "職種名", "届いた日", "詳細", "区分"], badgeIn: "奈良県内", badgeOut: "奈良県外", btnKyujin: "求人票を見る",
+        statsTitle: "📊 集計結果", dateGroup: "届いた日別", countTotal: "合計", noJobs: "求人票はまだ登録されていません。",
+        aiNote: "※はじめは「こんにちは」と言ってからはじめること。エラーが出た場合は先生に伝えてください。",
+        seatTitle: "席替え", aiTitle: "AIチャット", pdfLabel: "ページを開く"
+      },
+      en: {
+        loginTitle: "3IA Blue Members", loginTitleClassic: "Please Enter Password", loginMsg: "Enter secret password!", loginBtn: "Login", qrBtn: "QR Scan",
+        orientH2: "Please rotate your screen!", orientP: "Landscape mode recommended.", themeToClassic: "Board", themeToBlue: "Blueprint",
+        nav: ["🏠Home", "💼Jobs", "📅Schedule", "🗓️Calendar", "🎉Events", "🖊️Committees", "📖Study/AI", "📝Tests", "📁Prints"],
+        headerLogo: "3IA OJI-TECH", headerLogoClassic: "Class 3IA", heroTitle: "3IA's Blue World", heroTitleClassic: "Welcome to 3IA Page",
+        heroSub: "Oji Tech HS", heroSubClassic: "Board Mode",
+        newsTitle: "📢 News", detailsText: "Details here", aboutTitle: "About This Page", aboutP: "For 3IA students and parents only.", qrTitle: "QR Code",
+        alertPass: "Incorrect Password", emptyEvent: "Current Events!", soon: "Coming soon.",
+        search: ["ID No.", "Company", "Job", "Region", "Date", "Reset"], allLoc: "All",
+        th: ["ID", "Company", "Job", "Date", "Detail", "Region"], badgeIn: "In Nara", badgeOut: "Outside", btnKyujin: "View Job",
+        statsTitle: "📊 Statistics", dateGroup: "By Date", countTotal: "Total", noJobs: "No job postings registered yet.",
+        aiNote: "* Start by saying \"Hello\". If an error occurs, please tell your teacher.",
+        seatTitle: "Seat Shuffle", aiTitle: "AI Chat", pdfLabel: "Open page"
+      },
+      ko: {
+        loginTitle: "3IA Blue Members", loginTitleClassic: "비밀번호를 입력하세요", loginMsg: "비밀번호를 입력해 주세요!", loginBtn: "로그인", qrBtn: "QR 스캔",
+        orientH2: "화면을 가로로 돌려주세요!", orientP: "가로 모드 권장.", themeToClassic: "기판", themeToBlue: "도면",
+        nav: ["🏠홈", "💼구인표", "📅시간표", "🗓️캘린더", "🎉이벤트", "🖊️위원·계", "📖학습/AI", "📝시험", "📁프린트"],
+        headerLogo: "3IA OJI-TECH", headerLogoClassic: "3학년 I과 A반", heroTitle: "3IA's Blue World", heroTitleClassic: "3IA 페이지에 오신 것을 환영합니다",
+        heroSub: "왕지공업고등학교", heroSubClassic: "기판 모드",
+        newsTitle: "📢 공지사항", detailsText: "자세히", aboutTitle: "이 페이지에 대하여", aboutP: "3IA 학생 및 학부모 전용입니다.", qrTitle: "QR 코드",
+        alertPass: "비밀번호가 틀렸습니다", emptyEvent: "현재 이벤트 행사!", soon: "준비 중입니다.",
+        search: ["접수 NO.", "사업소명", "직종명", "구분", "접수일", "리셋"], allLoc: "전체",
+        th: ["번호", "사업소명", "직종명", "날짜", "상세", "구분"], badgeIn: "현내", badgeOut: "현외", btnKyujin: "구인표 보기",
+        statsTitle: "📊 집계 결과", dateGroup: "날짜별", countTotal: "합계", noJobs: "등록된 구인표가 아직 없습니다.",
+        aiNote: "※ 처음에는 \"안녕하세요\"라고 말하고 시작하세요. 오류가 나면 선생님께 알려주세요.",
+        seatTitle: "자리 바꾸기", aiTitle: "AI 채팅", pdfLabel: "페이지 열기"
+      }
+    };
+
+    function parseMarkdown(text) {
+      const match = text.match(/\[(.*?)\]\((.*?)\)/);
+      return match ? { name: match[1], url: match[2] } : { name: text, url: "" };
+    }
+
+    function frame(url, height) {
+      const t = translations[currentLang];
+      url = safeUrl(url);
+      if (!url) return `<div class="coming-soon">${t.soon}</div>`;
+      return `<iframe src="${esc(url)}" height="${height}" loading="lazy"></iframe>`;
+    }
+
+    function changeLanguage() {
+      currentLang = document.getElementById('lang-select').value;
+      try { localStorage.setItem('3ia-lang-pref', currentLang); } catch (e) {}
+      applyTranslations();
+      showPage(currentPage);
+    }
+
+    const THEMES = {
+      blue:  { cls: '',              label: { ja: '図面',   en: 'Blueprint', ko: '도면' } },
+      board: { cls: 'theme-classic', label: { ja: '基板',   en: 'Board',     ko: '기판' } },
+      '2ia': { cls: 'theme-2ia',     label: { ja: '旧2IA風', en: 'Old 2IA',   ko: '구 2IA' } },
+      '1ia': { cls: 'theme-1ia',     label: { ja: '旧1IA風', en: 'Old 1IA',   ko: '구 1IA' } }
+    };
+    const ONE_IA_SUB = { ja: "情報電子工学科 クラシックモード", en: "Classic Mode", ko: "클래식 모드" };
+    let currentTheme = 'blue';
+
+    function setThemeClass(k) {
+      if (!THEMES[k]) k = 'blue';
+      document.body.classList.remove('theme-classic', 'theme-2ia', 'theme-1ia');
+      if (THEMES[k].cls) document.body.classList.add(THEMES[k].cls);
+      currentTheme = k;
+    }
+
+    function applyTranslations() {
+      const t = translations[currentLang], th = currentTheme;
+      const navLinks = ["home", "kyujin", "schedule", "calendar", "ibento", "kakari", "gakusyuu", "test", "haihubutu"];
+      document.getElementById('nav-list').innerHTML = t.nav.map((name, i) => `<li><a onclick="showPage('${navLinks[i]}')">${name}</a></li>`).join('');
+      const sel = document.getElementById('theme-select');
+      sel.innerHTML = Object.keys(THEMES).map(k => `<option value="${k}">${THEMES[k].label[currentLang] || THEMES[k].label.ja}</option>`).join('');
+      sel.value = th;
+
+      let logo = t.headerLogo, title = t.heroTitle, sub = t.heroSub, login = t.loginTitle;
+      if (th === '2ia') { logo = '✨ 3IA OJI-TECH'; title = "✨ 3IA's Blue World ✨"; }
+      if (th === '1ia') { logo = t.headerLogoClassic; title = t.heroTitleClassic; sub = ONE_IA_SUB[currentLang]; login = t.loginTitleClassic; }
+      document.getElementById('header-logo').innerText = logo;
+      document.getElementById('hero-title').innerText = title;
+      document.getElementById('hero-sub').innerText = sub;
+      document.getElementById('login-title').innerText = login;
+      const emoji = document.getElementById('login-emoji'); if (emoji) emoji.style.display = (th === '1ia') ? "none" : "block";
+      document.getElementById('orient-h2').innerText = t.orientH2;
+      document.getElementById('orient-p').innerText = t.orientP;
+      document.getElementById('login-msg').innerText = t.loginMsg;
+      document.getElementById('login-btn').innerText = t.loginBtn;
+      document.getElementById('qr-toggle-btn').innerText = t.qrBtn;
+      renderStatus();
+    }
+
+    function changeTheme() {
+      const k = document.getElementById('theme-select').value;
+      setThemeClass(k);
+      try { localStorage.setItem('3ia-theme-pref', k); } catch (e) {}
+      applyTranslations();
+      showPage(currentPage);
+    }
+
+    let unlocking = false;
+    function unlock() {
+      if (unlocking) return;
+      unlocking = true;
+      stopCamera();
+      // データ読み込みを最大4秒だけ待ってから表示（遅い場合は先に表示して、読み込み後に更新）
+      Promise.race([dataPromise, new Promise(r => setTimeout(r, 4000))]).then(() => {
+        document.getElementById("password-screen").style.display = "none";
+        document.getElementById("main-content").style.display = "block";
+        showPage('home');
+      });
+    }
+
+    function checkPassword() {
+      if (hashOf(document.getElementById("password-input").value) === targetHash) unlock();
+      else alert(translations[currentLang].alertPass);
+    }
+
+    function showPage(page) {
+      currentPage = page;
+      const content = document.getElementById("page-content"), t = translations[currentLang];
+      let html = "";
+      document.getElementById("nav-list").classList.remove("show");
+
+      if (page === 'home') {
+        const news = newsData[currentLang] || newsData.ja;
+        const newsHtml = `<ul class="news-list">` + news.map(item =>
+          `<li><span class="news-date">${esc(item.date)}</span><span>${esc(item.text)}</span>` +
+          (safeUrl(item.url) ? `<a href="${esc(safeUrl(item.url))}" target="_blank" rel="noopener" class="news-link">【${t.detailsText}】</a>` : "") + `</li>`).join("") + `</ul>`;
+        const qrCard = safeUrl(QR_IMAGE) ? `<div class="card"><h2>${t.qrTitle}</h2><img src="${esc(safeUrl(QR_IMAGE))}" alt="QR" style="width:200px; display:block; margin:0 auto; border-radius:15px;"></div>` : "";
+        html = `<div class="card"><h2>${t.newsTitle}</h2>${newsHtml}</div><div class="card"><h2>${t.aboutTitle}</h2><p style="text-align:center;">${esc(sheetAbout[currentLang] || t.aboutP)}</p></div>${qrCard}`;
+      }
+      else if (page === 'kyujin') {
+        const ai = safeUrl(LINKS.jobAI) ? `<div class="card" style="padding:0;"><iframe src="${esc(safeUrl(LINKS.jobAI))}" style="width:100%; min-height:700px" allow="microphone"></iframe><p style="padding:10px 20px;">${t.aiNote}</p></div>` : "";
+        html = `<h1>${t.nav[1]}</h1>${ai}
+                <div class="search-panel">
+                  <div class="search-group"><label>${t.search[0]}</label><input type="text" id="s-no" oninput="applyFilters()"></div>
+                  <div class="search-group"><label>${t.search[1]}</label><input type="text" id="s-comp" oninput="applyFilters()"></div>
+                  <div class="search-group"><label>${t.search[2]}</label><input type="text" id="s-job" oninput="applyFilters()"></div>
+                  <div class="search-group"><label>${t.search[3]}</label><select id="s-loc" onchange="applyFilters()"><option value="">${t.allLoc}</option><option value="県内">${t.badgeIn}</option><option value="県外">${t.badgeOut}</option></select></div>
+                  <div class="search-group"><label>${t.search[4]}</label><input type="date" id="s-date" onchange="applyFilters()"></div>
+                  <button class="btn-reset" onclick="resetFilters()">${t.search[5]}</button>
+                </div>
+                <div id="stats-area" class="stats-container"></div>
+                <div class="table-container">
+                  <table class="job-table">
+                    <thead><tr>${t.th.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+                    <tbody id="job-body"></tbody>
+                  </table>
+                </div>`;
+        setTimeout(applyFilters, 50);
+      }
+      else if (page === 'schedule') { html = `<h1>${t.nav[2]}</h1><div class="card">${frame(LINKS.schedule, 400)}</div>`; }
+      else if (page === 'calendar') { html = `<h1>${t.nav[3]}</h1><div class="card">${frame(LINKS.calendar, 500)}${safeUrl(LINKS.calendar2) ? "<br>" + frame(LINKS.calendar2, 800) : ""}</div>`; }
+      else if (page === 'ibento') {
+        const link = safeUrl(LINKS.events) ? `<p style="margin-top:10px;"><a href="${esc(safeUrl(LINKS.events))}" target="_blank" rel="noopener">${t.pdfLabel}</a></p>` : "";
+        html = `<h1>${t.nav[4]}</h1><div class="card">${frame(LINKS.events, 700)}${link}<p style="text-align:center;margin-top:10px;">${t.emptyEvent}</p></div>`;
+      }
+      else if (page === 'kakari') { html = `<h1>${t.nav[5]}</h1><div class="card">${frame(LINKS.committee, 800)}</div>`; }
+      else if (page === 'gakusyuu') {
+        html = `<h1>${t.nav[6]}</h1><div class="card"><h2>${t.seatTitle}</h2>${frame(LINKS.seat, 600)}</div><div class="card"><h2>${t.aiTitle}</h2>${frame(LINKS.aiChat, 600)}</div>`;
+      }
+      else if (page === 'test') { html = `<h1>${t.nav[7]}</h1><div class="card">${frame(LINKS.test, 600)}</div>`; }
+      else if (page === 'haihubutu') { html = `<h1>${t.nav[8]}</h1><div class="card">${frame(LINKS.prints, 450)}</div>`; }
+      content.innerHTML = html;
+      window.scrollTo(0, 0);
+    }
+
+    function applyFilters() {
+      const vNo = document.getElementById('s-no')?.value.trim() || "";
+      const vComp = document.getElementById('s-comp')?.value.toLowerCase() || "";
+      const vJob = document.getElementById('s-job')?.value.toLowerCase() || "";
+      const vLoc = document.getElementById('s-loc')?.value || "";
+      const vDate = (document.getElementById('s-date')?.value || "").replace(/-/g, '/');
+      const tbody = document.getElementById('job-body');
+      const statsArea = document.getElementById('stats-area');
+      const t = translations[currentLang];
+      if (!tbody) return;
+
+      let countKenai = 0, countKengai = 0, rows = "";
+      const dateStats = {};
+
+      jobList.forEach(row => {
+        const info = parseMarkdown(row[1]);
+        // 日付は「2026/7/1」と「2026/07/01」のどちらでも比較できるよう0埋めして揃える
+        const norm = s => s.split('/').map(p => p.padStart(2, '0')).join('/');
+        if ((vNo === "" || row[0].toString() === vNo) &&
+            info.name.toLowerCase().includes(vComp) &&
+            row[2].toLowerCase().includes(vJob) &&
+            (vLoc === "" || row[4].includes(vLoc)) &&
+            (vDate === "" || norm(row[3]) === norm(vDate))) {
+
+          if (row[4].includes("県内")) countKenai++; else if (row[4].includes("県外")) countKengai++;
+          dateStats[row[3]] = (dateStats[row[3]] || 0) + 1;
+
+          const badge = row[4].includes("県内") ? "badge-kenai" : "badge-kengai";
+          const btn = safeUrl(info.url) ? `<a href="${esc(safeUrl(info.url))}" target="_blank" rel="noopener" class="btn-job-detail">${t.btnKyujin}</a>` : "";
+          rows += `<tr><td>${esc(row[0])}</td><td style="font-weight:bold;">${esc(info.name)}</td><td>${esc(row[2])}</td><td>${esc(row[3])}</td><td>${btn}</td><td><span class="${badge}">${row[4].includes("県内") ? t.badgeIn : t.badgeOut}</span></td></tr>`;
+        }
+      });
+
+      tbody.innerHTML = rows || `<tr><td colspan="6" class="job-empty">${t.noJobs}</td></tr>`;
+
+      if (statsArea) {
+        const dateHtml = Object.keys(dateStats).sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
+          .map(d => `${esc(d)}: <b>${dateStats[d]}</b>`).join(" / ");
+        statsArea.innerHTML = `
+          <div class="stats-item">
+            <strong>${t.statsTitle}</strong>
+            ${t.badgeIn}: <span class="badge-kenai">${countKenai}</span> /
+            ${t.badgeOut}: <span class="badge-kengai">${countKengai}</span> /
+            ${t.countTotal}: <b>${countKenai + countKengai}</b>
+          </div>
+          <div class="stats-item" style="flex:2;">
+            <strong>${t.dateGroup}</strong>
+            ${dateHtml || "---"}
+          </div>`;
+      }
+    }
+
+    function resetFilters() {
+      ['s-no', 's-comp', 's-job', 's-loc', 's-date'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { id === 's-loc' ? el.selectedIndex = 0 : el.value = ""; }
+      });
+      applyFilters();
+    }
+
+    function toggleMenu() { document.getElementById("nav-list").classList.toggle("show"); }
+
+    let heroIdx = 0;
+    function showHeroImage(idx) {
+      const img = document.querySelector(".hero-img"); if (!img) return;
+      img.style.opacity = 0;
+      setTimeout(() => { img.onload = () => img.style.opacity = 1; img.src = heroImages[idx]; }, 300);
+    }
+    function nextHero() { heroIdx = (heroIdx + 1) % heroImages.length; showHeroImage(heroIdx); }
+    function prevHero() { heroIdx = (heroIdx - 1 + heroImages.length) % heroImages.length; showHeroImage(heroIdx); }
+    setInterval(nextHero, 5000);
+
+    function stopCamera() {
+      if (videoStream) videoStream.getTracks().forEach(tr => tr.stop());
+      videoStream = null; isScanning = false;
+      const c = document.getElementById("qr-reader-container"); if (c) c.style.display = "none";
+    }
+
+    async function toggleQRReader() {
+      if (isScanning) { stopCamera(); return; }
+      try {
+        videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        const v = document.getElementById("qr-video");
+        v.srcObject = videoStream; v.play();
+        document.getElementById("qr-reader-container").style.display = "block";
+        isScanning = true;
+        requestAnimationFrame(tick);
+      } catch (err) { alert("Camera error"); }
+    }
+
+    function tick() {
+      if (!isScanning) return;
+      const video = document.getElementById("qr-video"), canvas = document.getElementById("qr-canvas");
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.height = video.videoHeight; canvas.width = video.videoWidth;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const code = jsQR(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
+        if (code && hashOf(code.data) === targetHash) { unlock(); return; }
+      }
+      requestAnimationFrame(tick);
+    }
+
+    window.onload = function () {
+      let savedTheme = null, savedLang = null;
+      try { savedTheme = localStorage.getItem('3ia-theme-pref'); savedLang = localStorage.getItem('3ia-lang-pref'); } catch (e) {}
+      if (savedLang && translations[savedLang]) { currentLang = savedLang; document.getElementById('lang-select').value = currentLang; }
+      if (savedTheme === 'classic') savedTheme = 'board'; // 旧保存値の互換
+      setThemeClass(savedTheme);
+      applyTranslations();
+      dataPromise = loadSheets();
+      // 遅れて読み込みが終わったとき、ホームか求人票を見ていれば表示を更新
+      dataPromise.then(() => {
+        if (document.getElementById('main-content').style.display === 'none') return;
+        if (currentPage === 'home') showPage('home');
+        else if (currentPage === 'kyujin') applyFilters();
+      });
+    };
+  </script>
+</body>
+</html>
